@@ -534,35 +534,26 @@ PREVIOUS supplies values omitted by a refresh response."
       (error "Codex device login is unavailable (HTTP %s)" status))
     (let* ((device-id (plist-get response :device_auth_id))
            (user-code (or (plist-get response :user_code)
-                          (plist-get response :usercode)))
-           (interval (string-to-number
-                      (format "%s" (or (plist-get response :interval) 5))))
-           (deadline (+ (float-time) 900))
-           code-response)
+                          (plist-get response :usercode))))
       (kill-new user-code)
-      (browse-url-firefox (concat ellm-codex--issuer "/codex/device"))
-      (message "Enter Codex device code %s (copied to kill ring)" user-code)
-      (while (and (not code-response) (< (float-time) deadline))
-        (pcase-let* ((poll-body
-                      (json-serialize
-                       (list :device_auth_id device-id :user_code user-code)))
-                     (`(,poll-status . ,poll-response)
-                      (ellm-codex--request
-                       'post (concat ellm-codex--issuer
-                                     "/api/accounts/deviceauth/token")
-                       :body poll-body)))
-          (cond
-           ((<= 200 poll-status 299) (setq code-response poll-response))
-           ((memq poll-status '(403 404)) (sleep-for (max interval 1)))
-           (t (error "Codex device authorization failed (HTTP %s)"
-                     poll-status)))))
-      (unless code-response
-        (error "Codex device authorization timed out"))
-      (ellm-codex--exchange-code
-       provider
-       (plist-get code-response :authorization_code)
-       (plist-get code-response :code_verifier)
-       (concat ellm-codex--issuer "/deviceauth/callback")))))
+      (read-string
+       (format "Open %s on another device and enter code %s, then press RET: "
+               (concat ellm-codex--issuer "/codex/device") user-code))
+      (pcase-let* ((poll-body
+                    (json-serialize
+                     (list :device_auth_id device-id :user_code user-code)))
+                   (`(,poll-status . ,poll-response)
+                    (ellm-codex--request
+                     'post (concat ellm-codex--issuer
+                                   "/api/accounts/deviceauth/token")
+                     :body poll-body)))
+        (unless (<= 200 poll-status 299)
+          (error "Codex device authorization failed (HTTP %s)" poll-status))
+        (ellm-codex--exchange-code
+         provider
+         (plist-get poll-response :authorization_code)
+         (plist-get poll-response :code_verifier)
+         (concat ellm-codex--issuer "/deviceauth/callback"))))))
 
 ;;;###autoload
 (defun ellm-codex-login (&optional device provider)

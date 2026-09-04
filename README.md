@@ -1011,7 +1011,9 @@ alist:
 ```
 
 Run `M-x ellm-codex-login` once to sign in.  It opens a browser by
-default; with a prefix argument it uses device-code login.
+default.  With a prefix argument it uses browser-free device-code login,
+showing a URL to open on another machine and copying the code to the kill ring.
+Complete authorization there, then press RET in Emacs to finish signing in.
 Credentials are stored in `ellm-codex-auth-file`.  Select it with
 `provider: codex` in frontmatter.  The available models and reasoning
 levels are completed in the buffer.
