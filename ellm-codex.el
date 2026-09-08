@@ -578,6 +578,27 @@ browser callback.  Interactively, the first configured Codex provider is used."
     provider))
 
 ;;;###autoload
+(defun ellm-codex-whoami (&optional provider)
+  "Show the saved Codex identity for PROVIDER.
+Interactively, use the first configured Codex provider.
+Display the email and account ID without exposing OAuth tokens.  This
+reads local credentials only; it does not check whether they remain valid."
+  (interactive)
+  (let* ((provider (ellm-codex--provider provider))
+         (auth (ellm-codex--read-auth-file
+                (ellm-codex-provider-auth-file provider))))
+    (unless auth
+      (user-error "No saved Codex credentials; run M-x ellm-codex-login"))
+    (let* ((id-token (plist-get auth :id_token))
+           (claims (ellm-codex--jwt-claims id-token))
+           (account-id (or (plist-get auth :account_id)
+                           (ellm-codex--account-id
+                            id-token (plist-get auth :access_token)))))
+      (message "Codex email: %s | account: %s (saved credentials)"
+               (or (plist-get claims :email) "unavailable")
+               (or account-id "unavailable")))))
+
+;;;###autoload
 (defun ellm-codex-logout (&optional provider)
   "Delete OAuth credentials for PROVIDER."
   (interactive)
